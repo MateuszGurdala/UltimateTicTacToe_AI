@@ -265,10 +265,6 @@ class AI:
             enemy = self.places(segment, self.enemy_sign)
             self.update_segment_value(segment, val=self.move_values["enemy_place"] * len(enemy) * sign)
 
-    def if_finished(self, segment):
-        if segment.winner:
-            self.update_segment_value(segment, "finished")
-
     """
     Checking the whole game map for specific situations
     """
@@ -398,11 +394,15 @@ class AI:
 
         return self.return_max(segment_values)
 
-    def pick_best_move(self, segment, game_map):
+    def pick_best_move(self, segment, game_map, enemy=False):
+        # Swapping signs if evaluation is for enemy
+        if enemy:
+            self.sign, self.enemy_sign = self.enemy_sign, self.sign
+
         # Evaluates possible moves and makes copy of them
         places = copy.deepcopy(self.evaluate_all_moves(segment))
 
-        # Clearing and rechecking possible next segments for next evaluations
+        # Clearing and rechecking possible next segments for evaluations
         self.possible_moves.clear()
         self.check_possible_moves(segment)
         segments = dict()
@@ -424,7 +424,48 @@ class AI:
         # Sum all evaluations for every segment
         sum_dict = {i: places[i] + segments[i] + maps[i] for i in self.possible_moves}
 
+        # Re-swapping signs
+        if enemy:
+            self.sign, self.enemy_sign = self.enemy_sign, self.sign
+
         return self.return_max(sum_dict)
+
+    """
+    Multi-turn evaluation
+    """
+
+    def recursive_algorithm(self, game_map, segment, depth, enemy=False):
+
+        if depth == 0 or game_map.winner:
+            return 0
+
+        if segment.winner:
+            segment_number = self.choose_segment(game_map, enemy)[0]
+            segment = game_map.segments[segment_number]
+
+        if not enemy:
+            place_number, place_value = self.pick_best_move(segment, game_map)
+            map_mirror = MapMirror(game_map, segment.number, place_number, self.sign)
+            next_val = self.recursive_algorithm(map_mirror, map_mirror.segments[place_number], depth - 1, enemy=True)
+
+            return place_value + next_val
+        else:
+            place_number, place_value = self.pick_best_move(segment, game_map, enemy=True)
+            map_mirror = MapMirror(game_map, segment.number, place_number, self.enemy_sign)
+            next_val = self.recursive_algorithm(map_mirror, map_mirror.segments[place_number], depth - 1)
+
+            return -place_value + next_val
+
+    def pick_place_algorithm(self, game_map, segment, depth):
+        self.check_possible_moves(segment)
+        segments = copy.deepcopy(self.possible_moves)
+
+        for i in segments:
+            map_mirror = MapMirror(game_map, segment.number, i, self.sign)
+            value = self.recursive_algorithm(map_mirror, map_mirror.segments[i], depth, enemy=True)
+            segments[i] = value
+
+        return self.return_max(segments)
 
 
 class MapMirror(Map):
