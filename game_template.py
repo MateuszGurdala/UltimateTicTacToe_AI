@@ -79,37 +79,39 @@ class Game:
         self.game_map.update()
         self.turn_number += 1
 
-    # def ai_pick_place_number(self):
-    #     depth = 4
-    #     if self.turn_number < 15:
-    #         number = self.ai.pick_best_move(self.game_map.segments[self.current_segment], self.game_map)[0]
-    #         return number
-    #     if self.turn_number > 35:
-    #         depth = 8
-    #     if self.turn_number > 50:
-    #         depth = 12
-    #
-    #     position = (self.game_map, self.current_segment)
-    #     alpha = self.ai.move_values["lost_game"]
-    #     beta = self.ai.move_values["won_game"]
-    #     path = [None] * depth
-    #
-    #     MiniMax(self.ai, position, depth, alpha, beta, path)
-    #
-    #     print(path)
-    #     number = path[-1][1]
-    #
-    #     return number
+    def ai_pick_place_number_minimax(self):
+        depth = 4
+        if self.turn_number < 15:
+            number = self.ai.pick_best_move(self.game_map.segments[self.current_segment], self.game_map)[0]
+            return number
+        if self.turn_number > 35:
+            depth = 8
+        if self.turn_number > 50:
+            depth = 12
+
+        position = (self.game_map, self.current_segment)
+        alpha = self.ai.move_values["lost_game"]
+        beta = self.ai.move_values["won_game"]
+        path = [None] * depth
+
+        MiniMax(self.ai, position, depth, alpha, beta, path)
+
+        print(path)
+        number = path[-1][1]
+
+        return number
 
     def ai_pick_place_number(self, number):
         segment, game_map = self.game_map.segments[self.current_segment], self.game_map
         if number == 1:
-            return self.ai_1.pick_best_move(segment, game_map)[0]
+            if self.turn_number < 20:
+                return self.ai_1.pick_best_move(segment, game_map)[0]
+            else:
+                return self.ai_1.pick_place_algorithm(game_map, segment, 20)[0]
         else:
             if self.turn_number < 20:
                 return self.ai_2.pick_best_move(segment, game_map)[0]
             else:
-
                 return self.ai_2.pick_place_algorithm(game_map, segment, self.depth)[0]
 
     def ai_1_turn(self):
@@ -200,6 +202,7 @@ def test(games):
 
 
 if __name__ == "__main__":
+    print("Started simulation")
     start = time.time()
     wins = {
         "X": 0,
@@ -208,16 +211,18 @@ if __name__ == "__main__":
         "Turns": 0
     }
     game_count = 0
-    while game_count < 20:
-        game = Game(20)
+    while game_count < 100:
+        game = Game(26)
         winner, turns = game.run_ai()
         wins[winner] = wins[winner] + 1
         wins["Turns"] = wins["Turns"] + turns
         game_count += 1
+        print(f"Progress: {game_count}%")
     for k in wins:
-        wins[k] = wins[k] / 20
+        wins[k] = wins[k] / 100
     finish = time.time()
-    print("Depth", 20)
+    print("Simulation finished")
+    print(f"Depth: O:20 vs X:26")
     print(wins)
     print("Time elapsed:", finish - start)
 
