@@ -17,7 +17,7 @@ class AI:
             "block_segment": 4,
             "adjacent": 1,
             "opposite": 1,
-            "corner": 1,
+            "corner": 0,
 
             # Enemy turn
             "enemy_win_segment": -5,
@@ -77,6 +77,16 @@ class AI:
                 ans.append(j)
 
         return choice(ans), max_val
+
+    @staticmethod
+    def clear_dict(dictionary):
+        key = 1
+        while key <= 9:
+            if str(key) in dictionary and dictionary[str(key)] == "del":
+                del dictionary[str(key)]
+            key += 1
+
+        return dictionary
 
     """
     Checking for AI's possible moves and their point values
@@ -456,10 +466,24 @@ class AI:
 
             return -place_value + next_val
 
-    def pick_place_algorithm(self, game_map, segment, depth):
+    def pick_place_algorithm(self, game_map, segment, depth=3):
+        # Best depth == 2-4
+        # Checking possible moves and making copy of it
         self.check_possible_moves(segment)
         segments = copy.deepcopy(self.possible_moves)
 
+        # Checking if there are possibilities of losing game and erasing it
+        if self.possible_win(game_map, enemy=True):
+            for i in segments:
+                if i in self.possible_win(game_map, enemy=True):
+                    segments[i] = "del"
+        segments = self.clear_dict(segments)
+
+        # If game is lost then returns random place, it doesn't matter
+        if not segments:
+            return self.return_max(self.possible_moves)
+
+        # Evaluating all possible non-losing moves through recursive algorithm
         for i in segments:
             map_mirror = MapMirror(game_map, segment.number, i, self.sign)
             value = self.recursive_algorithm(map_mirror, map_mirror.segments[i], depth, enemy=True)
