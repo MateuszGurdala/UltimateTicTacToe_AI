@@ -107,9 +107,9 @@ class Game:
             if self.turn_number < 20:
                 return self.ai_1.pick_best_move(segment, game_map)[0]
             else:
-                return self.ai_1.pick_place_algorithm(game_map, segment, 20)[0]
+                return self.ai_1.pick_place_algorithm(game_map, segment, 2)[0]
         else:
-            if self.turn_number < 20:
+            if self.turn_number < 15:
                 return self.ai_2.pick_best_move(segment, game_map)[0]
             else:
                 return self.ai_2.pick_place_algorithm(game_map, segment, self.depth)[0]
@@ -201,7 +201,7 @@ def test(games):
         print(wins)
 
 
-if __name__ == "__main__":
+def simulate(depth):
     print("Started simulation")
     start = time.time()
     wins = {
@@ -212,7 +212,7 @@ if __name__ == "__main__":
     }
     game_count = 0
     while game_count < 100:
-        game = Game(26)
+        game = Game(depth)
         winner, turns = game.run_ai()
         wins[winner] = wins[winner] + 1
         wins["Turns"] = wins["Turns"] + turns
@@ -222,7 +222,10 @@ if __name__ == "__main__":
         wins[k] = wins[k] / 100
     finish = time.time()
     print("Simulation finished")
-    print(f"Depth: O:20 vs X:26")
+    print(f"Depth: X:{depth}, O:2")
     print(wins)
     print("Time elapsed:", finish - start)
 
+
+if __name__ == "__main__":
+    simulate(3)
