@@ -8,7 +8,7 @@ from time import sleep
 
 
 class Game:
-    def __init__(self, depth):
+    def __init__(self, depth_1, depth_2):
         self.ai_1 = AI()
         self.ai_2 = AI()
         self.game_map = Map()
@@ -19,7 +19,8 @@ class Game:
         self.place_number = None
         self.current_segment = None
 
-        self.depth = depth
+        self.depth_1 = depth_1
+        self.depth_2 = depth_2
 
     def choose_sign(self, number):
         sign = input("Choose your sign:")
@@ -104,15 +105,21 @@ class Game:
     def ai_pick_place_number(self, number):
         segment, game_map = self.game_map.segments[self.current_segment], self.game_map
         if number == 1:
-            if self.turn_number < 20:
+            if self.turn_number < 15:
                 return self.ai_1.pick_best_move(segment, game_map)[0]
             else:
-                return self.ai_1.pick_place_algorithm(game_map, segment, 2)[0]
+                return \
+                    self.ai_1.pick_best_move_algorithm(game_map, segment, depth=self.depth_1,
+                                                       algorithm="average_value")[
+                        0]
         else:
             if self.turn_number < 15:
                 return self.ai_2.pick_best_move(segment, game_map)[0]
             else:
-                return self.ai_2.pick_place_algorithm(game_map, segment, self.depth)[0]
+                return \
+                    self.ai_2.pick_best_move_algorithm(game_map, segment, depth=self.depth_2,
+                                                       algorithm="highest_value")[
+                        0]
 
     def ai_1_turn(self):
         # self.game_map.print()
@@ -180,28 +187,7 @@ class Game:
         return self.game_map.winner, self.turn_number
 
 
-def test(games):
-    for i in range(1, 8):
-        wins = {
-            "X": 0,
-            "O": 0,
-            "Draw": 0,
-            "Turns": 0
-        }
-        game_count = 0
-        while game_count < games:
-            game = Game(i * 10)
-            winner, turns = game.run_ai()
-            wins[winner] = wins[winner] + 1
-            wins["Turns"] = wins["Turns"] + turns
-            game_count += 1
-        for k in wins:
-            wins[k] = wins[k] / games
-        print("Depth", i * 10)
-        print(wins)
-
-
-def simulate(depth):
+def simulate(games, depth_1, depth_2):
     print("Started simulation")
     start = time.time()
     wins = {
@@ -211,21 +197,24 @@ def simulate(depth):
         "Turns": 0
     }
     game_count = 0
-    while game_count < 100:
-        game = Game(depth)
+    progress = 0
+    while game_count < games:
+        game = Game(depth_1, depth_2)
         winner, turns = game.run_ai()
         wins[winner] = wins[winner] + 1
         wins["Turns"] = wins["Turns"] + turns
         game_count += 1
-        print(f"Progress: {game_count}%")
+        progress += game_count / games
+        print(f"Progress: {progress * 100}%")
     for k in wins:
-        wins[k] = wins[k] / 100
+        wins[k] = wins[k] / games
     finish = time.time()
     print("Simulation finished")
-    print(f"Depth: X:{depth}, O:2")
+    print(f"Depth: X:{depth_2}, O:{depth_1}")
     print(wins)
     print("Time elapsed:", finish - start)
 
 
 if __name__ == "__main__":
-    simulate(3)
+    game = Game(3, 3)
+    game.run()
