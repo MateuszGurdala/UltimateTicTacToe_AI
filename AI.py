@@ -88,6 +88,17 @@ class AI:
 
         return dictionary
 
+    @staticmethod
+    def sum_dict(dictionary):
+        """
+        Sums all dictionary values
+        """
+        ans = 0
+        for i in dictionary:
+            ans += dictionary[i]
+
+        return ans
+
     """
     Checking for AI's possible moves and their point values
     Method names represent what they focus on
@@ -280,7 +291,10 @@ class AI:
     """
 
     def possible_win(self, game_map, enemy=False):
-        # Checking if segment is in a winnable combination
+        """
+        Checking if segment is in a winnable combination
+        enemy = True when checking for enemy player
+        """
         if self.check_segment(game_map, sign=self.enemy_sign if enemy else self.sign):
             winning_segments = self.check_segment(game_map, sign=self.enemy_sign if enemy else self.sign)
         else:
@@ -316,7 +330,7 @@ class AI:
     Final evaluation methods
     """
 
-    def evaluate_all_moves(self, segment):
+    def evaluate_move_values(self, segment):
         """
         Evaluates all possible move values based on:
         Possible win/block situations
@@ -360,6 +374,12 @@ class AI:
         return segment.number, segment_value
 
     def evaluate_map_value(self, game_map):
+        """
+        Evaluates whole map value based on:
+        Game winner
+        Won/lost segment count
+        Possibilities of winning/losing the game
+        """
         # Checking if game is already won or lost
         if game_map.winner:
             if game_map.winner == self.sign:
@@ -384,11 +404,12 @@ class AI:
 
         return value
 
-    """
-    Only methods that really matter
-    """
-
     def choose_segment(self, game_map, enemy=False):
+        """
+        Evaluates best move for every segment
+        Chooses next segment based on best possible move
+        Returns tuple (segment_number, value)
+        """
         segment_values = {str(i): 0 for i in range(1, 10)}
 
         # Evaluating best possible move for every segment
@@ -404,13 +425,20 @@ class AI:
 
         return self.return_max(segment_values)
 
-    def pick_best_move(self, segment, game_map, enemy=False):
+    def pick_best_move(self, segment, game_map, enemy=False, all_moves=False):
+        """
+        Evaluates move, following segments and map values
+        Based on evaluations pick best possible move
+        all_moves = True -> returns all move evaluations
+        enemy = True when evaluating for enemy player
+        returns tuple (place_number, value)
+        """
         # Swapping signs if evaluation is for enemy
         if enemy:
             self.sign, self.enemy_sign = self.enemy_sign, self.sign
 
         # Evaluates possible moves and makes copy of them
-        places = copy.deepcopy(self.evaluate_all_moves(segment))
+        places = copy.deepcopy(self.evaluate_move_values(segment))
 
         # Clearing and rechecking possible next segments for evaluations
         self.possible_moves.clear()
@@ -438,13 +466,59 @@ class AI:
         if enemy:
             self.sign, self.enemy_sign = self.enemy_sign, self.sign
 
+        if all_moves:  # Added option to return all final move evaluations
+            return sum_dict
         return self.return_max(sum_dict)
 
     """
     Multi-turn evaluation
     """
 
-    def recursive_algorithm(self, game_map, segment, depth, enemy=False):
+    def highest_value_algorithm(self, game_map, segment, depth, enemy=False):
+        """
+        Evaluation algorithm based on recursively picking best moves for both ai-enemy take turns
+        Every evaluation map is updated by creating map_mirror based on evaluated place number
+        Returns sum of all evaluations
+        """
+
+        # Stops going deeper if game is won or reached end of the depth
+        if depth == 0 or game_map.winner:
+            return 0
+
+        # If segment if finished other one will be chosen based on choose_segment method
+        if segment.winner:
+            segment_number = self.choose_segment(game_map, enemy)[0]
+            segment = game_map.segments[segment_number]
+
+        if not enemy:
+            # Evaluates best place number and based on that creates updated game_map mirror
+            place_number, place_value = self.pick_best_move(segment, game_map)
+            map_mirror = MapMirror(game_map, segment.number, place_number, self.sign)
+            game_map, segment = map_mirror, map_mirror.segments[place_number]
+
+            # Recursion
+            next_val = self.highest_value_algorithm(game_map, segment, depth - 1, enemy=True)
+
+            # Adds place value and returns it plus the rest of the values
+            return next_val + place_value
+        else:
+            # Evaluates best place number and based on that creates updated game_map mirror
+            place_number, place_value = self.pick_best_move(segment, game_map, enemy=True)
+            map_mirror = MapMirror(game_map, segment.number, place_number, self.enemy_sign)
+
+            # Recursion
+            game_map, segment = map_mirror, map_mirror.segments[place_number]
+            next_val = self.highest_value_algorithm(game_map, segment, depth - 1)
+
+            # Inverts the sign of the place value and returns it plus the rest of the values
+            return next_val - place_value
+
+    def average_value_algorithm(self, game_map, segment, depth, enemy=False):
+        """
+        Another recursive evaluation algorithm
+        Evaluates all move values and its arithmetic average
+        Not as effective as highest value algorithm
+        """
 
         if depth == 0 or game_map.winner:
             return 0
@@ -453,21 +527,36 @@ class AI:
             segment_number = self.choose_segment(game_map, enemy)[0]
             segment = game_map.segments[segment_number]
 
+        # Copying possible moves for evaluations
+        self.check_possible_moves(segment)
+        places = copy.deepcopy(self.possible_moves)
+
         if not enemy:
-            place_number, place_value = self.pick_best_move(segment, game_map)
-            map_mirror = MapMirror(game_map, segment.number, place_number, self.sign)
-            next_val = self.recursive_algorithm(map_mirror, map_mirror.segments[place_number], depth - 1, enemy=True)
+            # Evaluating average place value in current segment
+            value = self.sum_dict(self.pick_best_move(segment, game_map, all_moves=True))
 
-            return place_value + next_val
+            for i in places:
+                map_mirror = MapMirror(game_map, segment.number, i, self.sign)
+                value -= self.average_value_algorithm(map_mirror, map_mirror.segments[i], depth - 1, enemy=True)
+
+            return value / len(places)
+
         else:
-            place_number, place_value = self.pick_best_move(segment, game_map, enemy=True)
-            map_mirror = MapMirror(game_map, segment.number, place_number, self.enemy_sign)
-            next_val = self.recursive_algorithm(map_mirror, map_mirror.segments[place_number], depth - 1)
+            # Evaluating average place value in current segment
+            value = self.sum_dict(self.pick_best_move(segment, game_map, all_moves=True, enemy=True))
 
-            return -place_value + next_val
+            for i in places:
+                map_mirror = MapMirror(game_map, segment.number, i, self.sign)
+                value += self.average_value_algorithm(map_mirror, map_mirror.segments[i], depth - 1)
 
-    def pick_place_algorithm(self, game_map, segment, depth=3):
-        # Best depth == 2-4
+            return value / len(places)
+
+    def pick_best_move_algorithm(self, game_map, segment, depth=3, algorithm=None):
+        """
+        Returns best possible move in current segment based on chosen recursive algorithm
+        """
+        # Best depth == 2-4 for highest value algorithm
+
         # Checking possible moves and making copy of it
         self.check_possible_moves(segment)
         segments = copy.deepcopy(self.possible_moves)
@@ -486,8 +575,11 @@ class AI:
         # Evaluating all possible non-losing moves through recursive algorithm
         for i in segments:
             map_mirror = MapMirror(game_map, segment.number, i, self.sign)
-            value = self.recursive_algorithm(map_mirror, map_mirror.segments[i], depth, enemy=True)
-            segments[i] = value
+            algorithms = {
+                "highest_value": self.highest_value_algorithm,
+                "average_value": self.average_value_algorithm
+            }
+            segments[i] = algorithms[algorithm](map_mirror, map_mirror.segments[i], depth, enemy=True)
 
         return self.return_max(segments)
 
